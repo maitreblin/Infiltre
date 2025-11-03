@@ -10,7 +10,7 @@ const PhaseDisplay: React.FC = () => {
   const { gameState, setGameState, moveToNextPhase } = useGame();
   const [roleRevealed, setRoleRevealed] = useState(false);
 
-  // Phase B : Affichage du Rôle
+  // Phase B : Affichage du Mot Secret (sans révéler le rôle)
   if (gameState.currentPhase === 'AffichageRole') {
     const currentPlayerName = gameState.activePlayers[gameState.currentPlayerIndexForRole];
     const currentPlayer = gameState.players.find((p) => p.name === currentPlayerName);
@@ -19,24 +19,24 @@ const PhaseDisplay: React.FC = () => {
       return null;
     }
 
-    const handleRoleViewComplete = () => {
+    const handleWordViewComplete = () => {
       // Passer au joueur suivant
       const nextIndex = gameState.currentPlayerIndexForRole + 1;
       
       if (nextIndex >= gameState.activePlayers.length) {
-        // Tous les joueurs ont vu leur rôle, passer à la phase TourDeParole
+        // Tous les joueurs ont vu leur mot, passer à la phase TourDeParole
         moveToNextPhase('TourDeParole');
         setGameState((prev) => ({
           ...prev,
           currentPlayerIndexForSpeech: 0,
         }));
       } else {
-        // Passer au joueur suivant dans l'affichage du rôle
+        // Passer au joueur suivant dans l'affichage du mot
         setGameState((prev) => ({
           ...prev,
           currentPlayerIndexForRole: nextIndex,
         }));
-        // Réinitialiser l'état d'affichage du rôle pour le joueur suivant
+        // Réinitialiser l'état d'affichage du mot pour le joueur suivant
         setRoleRevealed(false);
       }
     };
@@ -45,7 +45,7 @@ const PhaseDisplay: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
         <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
           <h2 className="text-2xl font-bold mb-6 text-center">
-            {roleRevealed ? 'Votre Rôle' : 'Prêt à voir votre rôle ?'}
+            {roleRevealed ? 'Votre Mot Secret' : 'Prêt à voir votre mot ?'}
           </h2>
           
           <div className="mb-6">
@@ -58,17 +58,10 @@ const PhaseDisplay: React.FC = () => {
                 onClick={() => setRoleRevealed(true)}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
               >
-                Voir mon Rôle
+                Voir mon Mot Secret
               </button>
             ) : (
               <div className="space-y-4">
-                <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-sm text-gray-300 mb-2">Votre Rôle</p>
-                  <p className="text-2xl font-bold text-center">
-                    {currentPlayer.role}
-                  </p>
-                </div>
-                
                 <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
                   <p className="text-sm text-gray-300 mb-2">Votre Mot Secret</p>
                   <p className="text-3xl font-bold text-center">
@@ -76,8 +69,12 @@ const PhaseDisplay: React.FC = () => {
                   </p>
                 </div>
                 
+                <p className="text-sm text-center text-gray-300 italic">
+                  Décrivez ce mot sans le nommer pendant la discussion.
+                </p>
+                
                 <button
-                  onClick={handleRoleViewComplete}
+                  onClick={handleWordViewComplete}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg mt-6"
                 >
                   Terminé / Je suis prêt

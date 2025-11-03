@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { GameState, GamePhase, Player, RoleType } from '../types/game';
+import { getRandomWordPair } from '../data/wordPairs';
 
 interface GameContextType {
   gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  initializeGame: (playerNames: string[], secretWords: { citoyen: string; undercover: string }) => void;
+  initializeGame: (playerNames: string[]) => void;
   moveToNextPhase: (phase: GamePhase) => void;
   eliminatePlayer: (playerName: string) => void;
 }
@@ -28,15 +29,39 @@ const initialGameState: GameState = {
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
+  // Fonction pour calculer la répartition des rôles selon les règles
+  const calculateRoleDistribution = (totalPlayers: number): { citoyens: number; undercovers: number } => {
+    if (totalPlayers % 2 === 0) {
+      // Nombre pair : Civils = moitié + 1, Undercover = moitié - 1
+      const moitie = totalPlayers / 2;
+      return {
+        citoyens: moitie + 1,
+        undercovers: moitie - 1,
+      };
+    } else {
+      // Nombre impair : Civils = arrondi supérieur, Undercover = arrondi inférieur
+      return {
+        citoyens: Math.ceil(totalPlayers / 2),
+        undercovers: Math.floor(totalPlayers / 2),
+      };
+    }
+  };
+
   // Fonction pour initialiser le jeu avec assignation aléatoire des rôles
-  const initializeGame = (playerNames: string[], secretWords: { citoyen: string; undercover: string }) => {
+  const initializeGame = (playerNames: string[]) => {
+    // Sélectionner une paire de mots aléatoirement
+    const wordPair = getRandomWordPair();
+    
+    // Calculer la répartition des rôles
+    const { citoyens, undercovers } = calculateRoleDistribution(playerNames.length);
+    
     // Créer une copie de la liste des noms pour mélanger
     const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);
     
-    // Assigner les rôles : un seul Undercover, le reste sont des Citoyens
+    // Assigner les rôles selon la répartition calculée
     const players: Player[] = shuffledNames.map((name, index) => {
-      const role: RoleType = index === 0 ? 'Undercover' : 'Citoyen';
-      const secretWord = role === 'Undercover' ? secretWords.undercover : secretWords.citoyen;
+      const role: RoleType = index < undercovers ? 'Undercover' : 'Citoyen';
+      const secretWord = role === 'Undercover' ? wordPair.undercover : wordPair.citoyen;
       
       return {
         name,
@@ -48,7 +73,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const newGameState: GameState = {
       players,
-      secretWords,
+      secretWords: {
+        citoyen: wordPair.citoyen,
+        undercover: wordPair.undercover,
+      },
       currentPhase: 'AffichageRole',
       activePlayers: playerNames,
       tourActuel: 1,

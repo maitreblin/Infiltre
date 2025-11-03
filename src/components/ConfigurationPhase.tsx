@@ -4,8 +4,6 @@ import { useGame } from '../context/GameContext';
 const ConfigurationPhase: React.FC = () => {
   const { initializeGame } = useGame();
   const [playerNames, setPlayerNames] = useState<string[]>(['']);
-  const [citoyenWord, setCitoyenWord] = useState('');
-  const [undercoverWord, setUndercoverWord] = useState('');
 
   const addPlayer = () => {
     setPlayerNames([...playerNames, '']);
@@ -25,13 +23,10 @@ const ConfigurationPhase: React.FC = () => {
 
   const handleStartGame = () => {
     const validNames = playerNames.filter((name) => name.trim() !== '');
-    if (validNames.length >= 3 && citoyenWord.trim() !== '' && undercoverWord.trim() !== '') {
-      initializeGame(validNames, {
-        citoyen: citoyenWord.trim(),
-        undercover: undercoverWord.trim(),
-      });
+    if (validNames.length >= 3) {
+      initializeGame(validNames);
     } else {
-      alert('Veuillez entrer au moins 3 joueurs et les deux mots secrets.');
+      alert('Veuillez entrer au moins 3 joueurs.');
     }
   };
 
@@ -71,26 +66,10 @@ const ConfigurationPhase: React.FC = () => {
             </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Mot Secret (Citoyen)</label>
-            <input
-              type="text"
-              value={citoyenWord}
-              onChange={(e) => setCitoyenWord(e.target.value)}
-              placeholder="Ex: Banane"
-              className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Mot Secret (Undercover)</label>
-            <input
-              type="text"
-              value={undercoverWord}
-              onChange={(e) => setUndercoverWord(e.target.value)}
-              placeholder="Ex: Pomme"
-              className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+            <p className="text-sm text-gray-300 text-center">
+              Une paire de mots sera sélectionnée aléatoirement au début de la partie.
+            </p>
           </div>
         </div>
 
