@@ -28,6 +28,28 @@ L'application sera disponible sur `http://localhost:5173`
 npm run build
 ```
 
+## Déploiement sur GitHub Pages
+
+Le projet est configuré pour être déployé automatiquement sur GitHub Pages via GitHub Actions.
+
+### Configuration
+
+1. Dans votre repository GitHub, allez dans **Settings** → **Pages**
+2. Sélectionnez **GitHub Actions** comme source de déploiement
+3. Le workflow `.github/workflows/deploy.yml` se déclenchera automatiquement à chaque push sur `main`
+
+### Base Path
+
+Si votre repository a un nom différent de "Infiltre", vous devez mettre à jour le `base` dans `vite.config.ts` :
+
+```typescript
+base: '/VOTRE-NOM-DE-REPOSITORY/',
+```
+
+### URL du site
+
+Votre site sera accessible à : `https://VOTRE-USERNAME.github.io/Infiltre/`
+
 ## Phases du Jeu
 
 1. **Configuration** : Saisie des noms des joueurs et des mots secrets
