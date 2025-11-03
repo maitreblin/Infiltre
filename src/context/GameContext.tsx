@@ -53,7 +53,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const wordPair = getRandomWordPair();
     
     // Calculer la répartition des rôles
-    const { citoyens, undercovers } = calculateRoleDistribution(playerNames.length);
+    const { undercovers } = calculateRoleDistribution(playerNames.length);
     
     // Créer une copie de la liste des noms pour mélanger
     const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { GamePhase } from '../types/game';
 
 /**
  * Composant PhaseDisplay
