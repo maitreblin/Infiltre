@@ -6,6 +6,7 @@ interface GameContextType {
   gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   initializeGame: (totalPlayers: number, numUndercovers: number, numMrWhite: number) => void;
+  restartGame: () => void;
   moveToNextPhase: (phase: GamePhase) => void;
   eliminatePlayer: (playerName: string) => void;
   checkMrWhiteGuess: (guessedWord: string, eliminatedPlayerName: string) => boolean;
@@ -103,6 +104,74 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setGameState(newGameState);
   };
 
+  // Fonction pour recommencer une partie avec les mêmes joueurs
+  const restartGame = () => {
+    setGameState((prev) => {
+      // Compter les rôles actuels
+      const numMrWhite = prev.players.filter((p) => p.role === 'Mr. White').length;
+      const numUndercovers = prev.players.filter((p) => p.role === 'Undercover').length;
+      const totalPlayers = prev.players.length;
+      
+      // Sélectionner une nouvelle paire de mots aléatoirement
+      const wordPair = getRandomWordPair();
+      
+      // Créer la liste des rôles à assigner (même distribution)
+      const rolesToAssign: RoleType[] = [];
+      for (let i = 0; i < numMrWhite; i++) {
+        rolesToAssign.push('Mr. White');
+      }
+      for (let i = 0; i < numUndercovers; i++) {
+        rolesToAssign.push('Undercover');
+      }
+      for (let i = 0; i < totalPlayers - numMrWhite - numUndercovers; i++) {
+        rolesToAssign.push('Citoyen');
+      }
+      
+      // Mélanger les rôles
+      const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
+      
+      // Garder les mêmes noms de joueurs mais réassigner les rôles
+      const playerNames = prev.players.map((p) => p.name);
+      const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);
+      
+      // Assigner les nouveaux rôles et mots secrets
+      const players: Player[] = shuffledNames.map((name, index) => {
+        const role = shuffledRoles[index];
+        let secretWord: string | null = null;
+        
+        if (role === 'Mr. White') {
+          secretWord = null;
+        } else if (role === 'Undercover') {
+          secretWord = wordPair.undercover;
+        } else {
+          secretWord = wordPair.citoyen;
+        }
+        
+        return {
+          name,
+          role,
+          secretWord,
+          isActive: true,
+        };
+      });
+      
+      return {
+        ...prev,
+        players,
+        secretWords: {
+          citoyen: wordPair.citoyen,
+          undercover: wordPair.undercover,
+        },
+        currentPhase: 'AffichageRole',
+        activePlayers: playerNames,
+        tourActuel: 1,
+        indexJoueurActuel: 0,
+        currentPlayerIndexForRole: 0,
+        currentPlayerIndexForSpeech: 0,
+      };
+    });
+  };
+
   // Fonction pour passer à la phase suivante
   const moveToNextPhase = (phase: GamePhase) => {
     setGameState((prev) => ({
@@ -177,6 +246,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         gameState,
         setGameState,
         initializeGame,
+        restartGame,
         moveToNextPhase,
         eliminatePlayer,
         checkMrWhiteGuess,

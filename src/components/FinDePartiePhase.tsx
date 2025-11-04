@@ -2,7 +2,7 @@ import React from 'react';
 import { useGame } from '../context/GameContext';
 
 const FinDePartiePhase: React.FC = () => {
-  const { gameState } = useGame();
+  const { gameState, restartGame, moveToNextPhase } = useGame();
 
   // Déterminer le gagnant
   const activePlayers = gameState.players.filter((p) => p.isActive);
@@ -58,12 +58,21 @@ const FinDePartiePhase: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => window.location.reload()}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
-        >
-          Nouvelle Partie
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={restartGame}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+          >
+            Recommencer
+          </button>
+          
+          <button
+            onClick={() => moveToNextPhase('Configuration')}
+            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+          >
+            Retour au menu
+          </button>
+        </div>
       </div>
     </div>
   );

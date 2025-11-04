@@ -12,6 +12,15 @@ const PhaseDisplay: React.FC = () => {
   const [revealedCards, setRevealedCards] = useState<Set<number>>(new Set());
   const [cardRevealed, setCardRevealed] = useState<number | null>(null);
 
+  // Réinitialiser revealedCards quand on entre dans la phase AffichageRole
+  useEffect(() => {
+    if (gameState.currentPhase === 'AffichageRole') {
+      setRevealedCards(new Set());
+      setSelectedCardIndex(null);
+      setCardRevealed(null);
+    }
+  }, [gameState.currentPhase]);
+
   // Effet pour passer automatiquement à la phase suivante quand toutes les cartes sont prises
   useEffect(() => {
     if (
@@ -30,11 +39,30 @@ const PhaseDisplay: React.FC = () => {
 
   // Phase B : Affichage avec cartes
   if (gameState.currentPhase === 'AffichageRole') {
+    // Trouver le joueur actuel qui doit prendre une carte
+    const currentPlayerIndex = gameState.currentPlayerIndexForRole;
+    const currentPlayer = gameState.players[currentPlayerIndex];
+    const currentPlayerName = currentPlayer?.name || `Joueur ${currentPlayerIndex + 1}`;
+    
+    // Vérifier si c'est une nouvelle partie (noms par défaut) ou un Recommencer (noms personnalisés)
+    // On vérifie si TOUS les joueurs ont encore des noms par défaut (nouvelle partie)
+    // OU si le joueur actuel a encore un nom par défaut (on continue à demander les noms)
+    const allPlayersHaveDefaultNames = gameState.players.every((p) => /^Joueur \d+$/.test(p.name));
+    const currentPlayerHasDefaultName = /^Joueur \d+$/.test(currentPlayerName);
+    // Si tous les joueurs ont des noms par défaut, c'est une nouvelle partie
+    // Si seulement le joueur actuel a un nom par défaut, on continue à demander les noms
+    const isNewGame = allPlayersHaveDefaultNames || currentPlayerHasDefaultName;
 
     const handleCardClick = (cardIndex: number) => {
       setSelectedCardIndex(cardIndex);
       setPlayerName('');
-      setCardRevealed(null);
+      // Pour un Recommencer, on affiche directement le mot (pas besoin de demander le nom)
+      // Pour une nouvelle partie, on demande d'abord le nom
+      if (!isNewGame) {
+        setCardRevealed(cardIndex);
+      } else {
+        setCardRevealed(null);
+      }
     };
 
     const handleNameSubmit = () => {
@@ -48,28 +76,44 @@ const PhaseDisplay: React.FC = () => {
     const handleCardComplete = () => {
       if (selectedCardIndex === null) return;
 
-      const finalPlayerName = playerName.trim();
+      // Vérifier si le joueur actuel a encore un nom par défaut (nouvelle partie)
+      const needsNameUpdate = currentPlayerHasDefaultName;
+      const finalPlayerName = needsNameUpdate ? playerName.trim() : currentPlayerName;
 
       // Marquer la carte comme révélée
       const newRevealedCards = new Set(revealedCards);
       newRevealedCards.add(selectedCardIndex);
 
-      // Mettre à jour l'état des cartes révélées d'abord
+      // Mettre à jour l'état des cartes révélées
       setRevealedCards(newRevealedCards);
 
-      // Mettre à jour le nom du joueur dans l'état
-      setGameState((prev) => {
-        const updatedPlayers = prev.players.map((p, index) =>
-          index === selectedCardIndex ? { ...p, name: finalPlayerName } : p
-        );
-        const updatedActivePlayers = updatedPlayers.map((p) => p.name);
-
-        return {
-          ...prev,
-          players: updatedPlayers,
-          activePlayers: updatedActivePlayers,
-        };
-      });
+      // Mettre à jour le nom du joueur si c'est une nouvelle partie (le joueur a encore un nom par défaut)
+      if (needsNameUpdate) {
+        setGameState((prev) => {
+          // Mettre à jour le nom du joueur actuel (celui qui prend la carte)
+          const updatedPlayers = prev.players.map((p, index) =>
+            index === currentPlayerIndex ? { ...p, name: finalPlayerName } : p
+          );
+          const updatedActivePlayers = updatedPlayers.map((p) => p.name);
+          
+          const nextIndex = prev.currentPlayerIndexForRole + 1;
+          return {
+            ...prev,
+            players: updatedPlayers,
+            activePlayers: updatedActivePlayers,
+            currentPlayerIndexForRole: nextIndex,
+          };
+        });
+      } else {
+        // Pour un Recommencer, juste passer au joueur suivant
+        setGameState((prev) => {
+          const nextIndex = prev.currentPlayerIndexForRole + 1;
+          return {
+            ...prev,
+            currentPlayerIndexForRole: nextIndex,
+          };
+        });
+      }
 
       // Réinitialiser
       setSelectedCardIndex(null);
@@ -81,6 +125,7 @@ const PhaseDisplay: React.FC = () => {
     // Si une carte est sélectionnée et le mot est révélé
     if (selectedCardIndex !== null && cardRevealed === selectedCardIndex) {
       const selectedPlayer = gameState.players[selectedCardIndex];
+      const displayName = currentPlayerHasDefaultName ? playerName.trim() : currentPlayerName;
       
       return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
@@ -91,7 +136,7 @@ const PhaseDisplay: React.FC = () => {
             
             <div className="mb-6">
               <p className="text-lg text-center mb-4">
-                <span className="font-semibold">{playerName}</span>
+                <span className="font-semibold">{displayName}</span>
               </p>
               
               {selectedPlayer.role === 'Mr. White' ? (
@@ -134,8 +179,8 @@ const PhaseDisplay: React.FC = () => {
       );
     }
 
-    // Si une carte est sélectionnée mais le nom n'est pas encore entré
-    if (selectedCardIndex !== null && cardRevealed !== selectedCardIndex) {
+    // Si une carte est sélectionnée mais le nom n'est pas encore entré (seulement pour nouvelle partie)
+    if (selectedCardIndex !== null && cardRevealed !== selectedCardIndex && isNewGame) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
           <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
@@ -177,7 +222,7 @@ const PhaseDisplay: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
         <div className="w-full max-w-2xl">
           <h2 className="text-2xl font-bold mb-6 text-center">
-            Choisissez une carte
+            {isNewGame ? 'Choisissez une carte' : `${currentPlayerName}, prenez une carte`}
           </h2>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
