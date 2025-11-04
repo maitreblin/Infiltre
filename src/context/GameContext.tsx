@@ -5,9 +5,10 @@ import { getRandomWordPair } from '../data/wordPairs';
 interface GameContextType {
   gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  initializeGame: (playerNames: string[]) => void;
+  initializeGame: (totalPlayers: number, numUndercovers: number, numMrWhite: number) => void;
   moveToNextPhase: (phase: GamePhase) => void;
   eliminatePlayer: (playerName: string) => void;
+  checkMrWhiteGuess: (guessedWord: string, eliminatedPlayerName: string) => boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -29,39 +30,53 @@ const initialGameState: GameState = {
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  // Fonction pour calculer la répartition des rôles selon les règles
-  const calculateRoleDistribution = (totalPlayers: number): { citoyens: number; undercovers: number } => {
-    if (totalPlayers % 2 === 0) {
-      // Nombre pair : Civils = moitié + 1, Undercover = moitié - 1
-      const moitie = totalPlayers / 2;
-      return {
-        citoyens: moitie + 1,
-        undercovers: moitie - 1,
-      };
-    } else {
-      // Nombre impair : Civils = arrondi supérieur, Undercover = arrondi inférieur
-      return {
-        citoyens: Math.ceil(totalPlayers / 2),
-        undercovers: Math.floor(totalPlayers / 2),
-      };
-    }
-  };
-
   // Fonction pour initialiser le jeu avec assignation aléatoire des rôles
-  const initializeGame = (playerNames: string[]) => {
+  const initializeGame = (totalPlayers: number, numUndercovers: number, numMrWhite: number) => {
     // Sélectionner une paire de mots aléatoirement
     const wordPair = getRandomWordPair();
     
-    // Calculer la répartition des rôles
-    const { undercovers } = calculateRoleDistribution(playerNames.length);
+    // Calculer le nombre de Civils
+    const numCivils = totalPlayers - numUndercovers - numMrWhite;
+    
+    // Générer les noms des joueurs
+    const playerNames = Array.from({ length: totalPlayers }, (_, i) => `Joueur ${i + 1}`);
     
     // Créer une copie de la liste des noms pour mélanger
     const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);
     
-    // Assigner les rôles selon la répartition calculée
+    // Créer la liste des rôles à assigner
+    const rolesToAssign: RoleType[] = [];
+    
+    // Ajouter Mr. White
+    for (let i = 0; i < numMrWhite; i++) {
+      rolesToAssign.push('Mr. White');
+    }
+    
+    // Ajouter les Undercovers
+    for (let i = 0; i < numUndercovers; i++) {
+      rolesToAssign.push('Undercover');
+    }
+    
+    // Ajouter les Citoyens
+    for (let i = 0; i < numCivils; i++) {
+      rolesToAssign.push('Citoyen');
+    }
+    
+    // Mélanger les rôles
+    const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
+    
+    // Assigner les rôles aux joueurs mélangés
     const players: Player[] = shuffledNames.map((name, index) => {
-      const role: RoleType = index < undercovers ? 'Undercover' : 'Citoyen';
-      const secretWord = role === 'Undercover' ? wordPair.undercover : wordPair.citoyen;
+      const role = shuffledRoles[index];
+      let secretWord: string | null = null;
+      
+      if (role === 'Mr. White') {
+        secretWord = null;
+      } else if (role === 'Undercover') {
+        secretWord = wordPair.undercover;
+      } else {
+        secretWord = wordPair.citoyen;
+      }
       
       return {
         name,
@@ -94,6 +109,32 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ...prev,
       currentPhase: phase,
     }));
+  };
+
+  // Fonction pour vérifier la devinette de Mr. White
+  const checkMrWhiteGuess = (guessedWord: string, eliminatedPlayerName: string): boolean => {
+    const normalizedGuess = guessedWord.trim().toLowerCase();
+    const correctWord = gameState.secretWords.citoyen.toLowerCase();
+    
+    if (normalizedGuess === correctWord) {
+      // Mr. White a trouvé le mot ! Victoire pour Mr. White et Undercover
+      setGameState((prev) => {
+        const updatedPlayers = prev.players.map((p) =>
+          p.name === eliminatedPlayerName ? { ...p, isActive: false } : p
+        );
+        
+        return {
+          ...prev,
+          players: updatedPlayers,
+          currentPhase: 'FinDePartie',
+        };
+      });
+      return true;
+    }
+    
+    // Mauvaise réponse, élimination normale
+    eliminatePlayer(eliminatedPlayerName);
+    return false;
   };
 
   // Fonction pour éliminer un joueur
@@ -138,6 +179,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         initializeGame,
         moveToNextPhase,
         eliminatePlayer,
+        checkMrWhiteGuess,
       }}
     >
       {children}

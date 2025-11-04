@@ -7,14 +7,25 @@ const FinDePartiePhase: React.FC = () => {
   // Déterminer le gagnant
   const activePlayers = gameState.players.filter((p) => p.isActive);
   const hasUndercover = activePlayers.some((p) => p.role === 'Undercover');
+  const hasMrWhite = activePlayers.some((p) => p.role === 'Mr. White');
   
+  // Si on a des Undercover ou Mr. White actifs, ils gagnent ensemble
+  // Si un Mr. White a trouvé le mot avant d'être éliminé, la partie se termine directement en fin de partie
   let winnerMessage = '';
-  if (activePlayers.length === 1 && activePlayers[0].role === 'Undercover') {
-    winnerMessage = "L'Undercover gagne !";
-  } else if (!hasUndercover) {
-    winnerMessage = 'Les Citoyens gagnent !';
+  if (activePlayers.length === 1) {
+    const winner = activePlayers[0];
+    if (winner.role === 'Undercover') {
+      winnerMessage = "L'Undercover gagne !";
+    } else if (winner.role === 'Mr. White') {
+      winnerMessage = "Mr. White et Undercover gagnent !";
+    } else {
+      winnerMessage = 'Les Citoyens gagnent !';
+    }
+  } else if (hasUndercover || hasMrWhite) {
+    // Si on a des Undercover ou Mr. White actifs, ils gagnent ensemble
+    winnerMessage = 'Mr. White et Undercover gagnent !';
   } else {
-    winnerMessage = "L'Undercover gagne !";
+    winnerMessage = 'Les Citoyens gagnent !';
   }
 
   return (
@@ -35,6 +46,8 @@ const FinDePartiePhase: React.FC = () => {
                 className={`p-3 rounded-lg ${
                   player.role === 'Undercover'
                     ? 'bg-red-500/30'
+                    : player.role === 'Mr. White'
+                    ? 'bg-yellow-500/30'
                     : 'bg-blue-500/30'
                 }`}
               >

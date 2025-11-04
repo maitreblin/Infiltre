@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 
 /**
@@ -7,80 +7,205 @@ import { useGame } from '../context/GameContext';
  */
 const PhaseDisplay: React.FC = () => {
   const { gameState, setGameState, moveToNextPhase } = useGame();
-  const [roleRevealed, setRoleRevealed] = useState(false);
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+  const [playerName, setPlayerName] = useState<string>('');
+  const [revealedCards, setRevealedCards] = useState<Set<number>>(new Set());
+  const [cardRevealed, setCardRevealed] = useState<number | null>(null);
 
-  // Phase B : Affichage du Mot Secret (sans révéler le rôle)
-  if (gameState.currentPhase === 'AffichageRole') {
-    const currentPlayerName = gameState.activePlayers[gameState.currentPlayerIndexForRole];
-    const currentPlayer = gameState.players.find((p) => p.name === currentPlayerName);
-
-    if (!currentPlayer) {
-      return null;
+  // Effet pour passer automatiquement à la phase suivante quand toutes les cartes sont prises
+  useEffect(() => {
+    if (
+      gameState.currentPhase === 'AffichageRole' &&
+      revealedCards.size === gameState.players.length &&
+      gameState.players.length > 0
+    ) {
+      // Toutes les cartes sont prises, passer à la phase suivante
+      setGameState((prev) => ({
+        ...prev,
+        currentPlayerIndexForSpeech: 0,
+      }));
+      moveToNextPhase('TourDeParole');
     }
+  }, [revealedCards.size, gameState.players.length, gameState.currentPhase, setGameState, moveToNextPhase]);
 
-    const handleWordViewComplete = () => {
-      // Passer au joueur suivant
-      const nextIndex = gameState.currentPlayerIndexForRole + 1;
-      
-      if (nextIndex >= gameState.activePlayers.length) {
-        // Tous les joueurs ont vu leur mot, passer à la phase TourDeParole
-        moveToNextPhase('TourDeParole');
-        setGameState((prev) => ({
-          ...prev,
-          currentPlayerIndexForSpeech: 0,
-        }));
-      } else {
-        // Passer au joueur suivant dans l'affichage du mot
-        setGameState((prev) => ({
-          ...prev,
-          currentPlayerIndexForRole: nextIndex,
-        }));
-        // Réinitialiser l'état d'affichage du mot pour le joueur suivant
-        setRoleRevealed(false);
-      }
+  // Phase B : Affichage avec cartes
+  if (gameState.currentPhase === 'AffichageRole') {
+
+    const handleCardClick = (cardIndex: number) => {
+      setSelectedCardIndex(cardIndex);
+      setPlayerName('');
+      setCardRevealed(null);
     };
 
+    const handleNameSubmit = () => {
+      if (playerName.trim() === '') {
+        alert('Veuillez entrer votre nom.');
+        return;
+      }
+      setCardRevealed(selectedCardIndex);
+    };
+
+    const handleCardComplete = () => {
+      if (selectedCardIndex === null) return;
+
+      const finalPlayerName = playerName.trim();
+
+      // Marquer la carte comme révélée
+      const newRevealedCards = new Set(revealedCards);
+      newRevealedCards.add(selectedCardIndex);
+
+      // Mettre à jour l'état des cartes révélées d'abord
+      setRevealedCards(newRevealedCards);
+
+      // Mettre à jour le nom du joueur dans l'état
+      setGameState((prev) => {
+        const updatedPlayers = prev.players.map((p, index) =>
+          index === selectedCardIndex ? { ...p, name: finalPlayerName } : p
+        );
+        const updatedActivePlayers = updatedPlayers.map((p) => p.name);
+
+        return {
+          ...prev,
+          players: updatedPlayers,
+          activePlayers: updatedActivePlayers,
+        };
+      });
+
+      // Réinitialiser
+      setSelectedCardIndex(null);
+      setPlayerName('');
+      setCardRevealed(null);
+      // L'effet useEffect se chargera de passer à la phase suivante si nécessaire
+    };
+
+    // Si une carte est sélectionnée et le mot est révélé
+    if (selectedCardIndex !== null && cardRevealed === selectedCardIndex) {
+      const selectedPlayer = gameState.players[selectedCardIndex];
+      
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-center">
+              {selectedPlayer.role === 'Mr. White' ? 'Votre Rôle' : 'Votre Mot Secret'}
+            </h2>
+            
+            <div className="mb-6">
+              <p className="text-lg text-center mb-4">
+                <span className="font-semibold">{playerName}</span>
+              </p>
+              
+              {selectedPlayer.role === 'Mr. White' ? (
+                <>
+                  <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm mb-4">
+                    <p className="text-sm text-gray-300 mb-2">Votre Rôle</p>
+                    <p className="text-3xl font-bold text-center text-yellow-400">
+                      Vous êtes Mr. White
+                    </p>
+                  </div>
+                  
+                  <p className="text-sm text-center text-gray-300 italic mb-6">
+                    Vous ne connaissez aucun mot secret. Votre objectif est de survivre et de découvrir les mots pendant la discussion.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm mb-4">
+                    <p className="text-sm text-gray-300 mb-2">Votre Mot Secret</p>
+                    <p className="text-3xl font-bold text-center">
+                      {selectedPlayer.secretWord}
+                    </p>
+                  </div>
+                  
+                  <p className="text-sm text-center text-gray-300 italic mb-6">
+                    Décrivez ce mot sans le nommer pendant la discussion.
+                  </p>
+                </>
+              )}
+              
+              <button
+                onClick={handleCardComplete}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+              >
+                Carte prise
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Si une carte est sélectionnée mais le nom n'est pas encore entré
+    if (selectedCardIndex !== null && cardRevealed !== selectedCardIndex) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-center">Entrez votre nom</h2>
+            
+            <div className="mb-6">
+              <input
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                placeholder="Votre nom"
+                className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center text-xl"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && playerName.trim() !== '') {
+                    handleNameSubmit();
+                  }
+                }}
+                autoFocus
+              />
+              
+              <button
+                onClick={handleNameSubmit}
+                disabled={playerName.trim() === ''}
+                className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg ${
+                  playerName.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                Voir mon mot
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // Affichage des cartes disponibles
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-purple-900 text-white">
-        <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
+        <div className="w-full max-w-2xl">
           <h2 className="text-2xl font-bold mb-6 text-center">
-            {roleRevealed ? 'Votre Mot Secret' : 'Prêt à voir votre mot ?'}
+            Choisissez une carte
           </h2>
           
-          <div className="mb-6">
-            <p className="text-lg text-center mb-4">
-              <span className="font-semibold">{currentPlayer.name}</span>
-            </p>
-            
-            {!roleRevealed ? (
-              <button
-                onClick={() => setRoleRevealed(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
-              >
-                Voir mon Mot Secret
-              </button>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-sm text-gray-300 mb-2">Votre Mot Secret</p>
-                  <p className="text-3xl font-bold text-center">
-                    {currentPlayer.secretWord}
-                  </p>
-                </div>
-                
-                <p className="text-sm text-center text-gray-300 italic">
-                  Décrivez ce mot sans le nommer pendant la discussion.
-                </p>
-                
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {gameState.players.map((_, index) => {
+              const isRevealed = revealedCards.has(index);
+              
+              if (isRevealed) {
+                return null; // Ne pas afficher les cartes déjà prises
+              }
+
+              return (
                 <button
-                  onClick={handleWordViewComplete}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg mt-6"
+                  key={index}
+                  onClick={() => handleCardClick(index)}
+                  className="aspect-[2/3] bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center border-2 border-white/30"
                 >
-                  Terminé / Je suis prêt
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🃏</div>
+                    <div className="text-sm font-semibold">Carte {index + 1}</div>
+                  </div>
                 </button>
-              </div>
-            )}
+              );
+            })}
           </div>
+          
+          <p className="text-center text-gray-300 mt-6">
+            {revealedCards.size} / {gameState.players.length} cartes prises
+          </p>
         </div>
       </div>
     );
@@ -88,58 +213,80 @@ const PhaseDisplay: React.FC = () => {
 
   // Phase C : Tour de Parole
   if (gameState.currentPhase === 'TourDeParole') {
-    const currentPlayerName = gameState.activePlayers[gameState.currentPlayerIndexForSpeech];
-    const currentPlayer = gameState.players.find((p) => p.name === currentPlayerName);
-
-    if (!currentPlayer) {
-      return null;
-    }
-
-    const handleNextPlayer = () => {
-      const nextIndex = gameState.currentPlayerIndexForSpeech + 1;
-      
-      if (nextIndex >= gameState.activePlayers.length) {
-        // Tous les joueurs ont parlé, passer à la phase de vote
-        moveToNextPhase('VoteElimination');
-      } else {
-        // Passer au joueur suivant
-        setGameState((prev) => ({
-          ...prev,
-          currentPlayerIndexForSpeech: nextIndex,
-        }));
-      }
+    const handleGoToVote = () => {
+      moveToNextPhase('VoteElimination');
     };
+
+    // Réorganiser l'ordre pour que Mr. White ne soit jamais en premier
+    const getOrderedPlayers = () => {
+      const ordered = [...gameState.activePlayers];
+      
+      // Vérifier si le premier joueur est Mr. White
+      const firstPlayer = gameState.players.find((p) => p.name === ordered[0]);
+      
+      if (firstPlayer?.role === 'Mr. White' && ordered.length > 1) {
+        // Si le premier est Mr. White, on doit le déplacer
+        const mrWhiteName = ordered[0]; // Le Mr. White qui était en premier
+        
+        // Prendre tous les autres joueurs (non-Mr.White)
+        const otherPlayers = ordered.slice(1);
+        
+        // Mélanger aléatoirement les autres joueurs
+        const shuffled = [...otherPlayers].sort(() => Math.random() - 0.5);
+        
+        // Retourner : [premier joueur non-Mr.White, ...mélange aléatoire, Mr. White]
+        return [...shuffled, mrWhiteName];
+      }
+      
+      // Si le premier n'est pas Mr. White, on peut juste mélanger le reste
+      // mais on garde le premier en place et on mélange les autres
+      const first = ordered[0];
+      const rest = ordered.slice(1);
+      const shuffledRest = [...rest].sort(() => Math.random() - 0.5);
+      
+      return [first, ...shuffledRest];
+    };
+
+    const orderedPlayers = getOrderedPlayers();
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-900 to-red-900 text-white">
         <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
           <div className="mb-6 text-center">
             <p className="text-sm text-gray-300 mb-2">Tour {gameState.tourActuel}</p>
-            <h2 className="text-3xl font-bold mb-2">{currentPlayer.name}</h2>
-            <p className="text-lg text-gray-300">C'est à votre tour de parler</p>
+            <h2 className="text-2xl font-bold mb-4">Tour de Parole</h2>
+            <p className="text-lg text-gray-300 mb-6">
+              Chaque joueur doit décrire son mot sans le nommer
+            </p>
           </div>
           
-          <div className="bg-white/20 rounded-xl p-6 backdrop-blur-sm mb-6">
-            <p className="text-lg text-center leading-relaxed">
-              Décrivez votre mot sans le nommer.
-            </p>
-            <p className="text-sm text-gray-300 text-center mt-4">
-              Les autres joueurs doivent deviner qui est l'Undercover.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              onClick={handleNextPlayer}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
-            >
-              Passer au suivant
-            </button>
-            
-            <div className="text-center text-sm text-gray-300">
-              Joueur {gameState.currentPlayerIndexForSpeech + 1} / {gameState.activePlayers.length}
+          <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm mb-6">
+            <h3 className="text-lg font-semibold mb-3 text-center">Ordre de parole :</h3>
+            <div className="space-y-2">
+              {orderedPlayers.map((playerName, index) => {
+                return (
+                  <div
+                    key={playerName}
+                    className="flex items-center justify-between bg-white/10 rounded-lg px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-bold text-orange-400 w-6">
+                        {index + 1}
+                      </span>
+                      <span className="font-semibold">{playerName}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          <button
+            onClick={handleGoToVote}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+          >
+            Passer aux votes
+          </button>
         </div>
       </div>
     );

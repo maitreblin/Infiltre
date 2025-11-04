@@ -2,12 +2,12 @@
  * Types TypeScript pour le jeu Le Suspect
  */
 
-export type RoleType = 'Citoyen' | 'Undercover';
+export type RoleType = 'Citoyen' | 'Undercover' | 'Mr. White';
 
 export interface Player {
   name: string;
   role: RoleType;
-  secretWord: string;
+  secretWord: string | null; // null pour Mr. White
   isActive: boolean;
 }
 
