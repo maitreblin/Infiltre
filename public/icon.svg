@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Fond avec dégradé -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#654321;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fond -->
+  <rect width="512" height="512" rx="80" fill="url(#bgGradient)"/>
+  
+  <!-- Carte de jeu -->
+  <rect x="100" y="100" width="312" height="312" rx="20" fill="#FFF" stroke="#8B4513" stroke-width="8"/>
+  
+  <!-- Symbole question mark stylisé -->
+  <text x="256" y="320" font-family="Arial, sans-serif" font-size="180" font-weight="bold" text-anchor="middle" fill="#8B4513">?</text>
+  
+  <!-- Petites cartes décoratives -->
+  <rect x="50" y="50" width="60" height="80" rx="5" fill="#FFF" opacity="0.3"/>
+  <rect x="402" y="382" width="60" height="80" rx="5" fill="#FFF" opacity="0.3"/>
+</svg>
+
