@@ -171,7 +171,7 @@ const VoteEliminationPhase: React.FC = () => {
           Sélectionnez le joueur à éliminer
         </p>
 
-        <div className="space-y-3 mb-6">
+        <div className="space-y-3 mb-6 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
           {gameState.activePlayers.map((playerName) => (
             <button
               key={playerName}

@@ -102,17 +102,17 @@ const ConfigurationPhase: React.FC = () => {
             <input
               type="range"
               min="3"
-              max="15"
+              max="25"
               value={totalPlayers}
               onChange={(e) => setTotalPlayers(parseInt(e.target.value, 10))}
               className="w-full h-3 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
               style={{
-                background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${((totalPlayers - 3) / (15 - 3)) * 100}%, rgba(255,255,255,0.2) ${((totalPlayers - 3) / (15 - 3)) * 100}%, rgba(255,255,255,0.2) 100%)`
+                background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${((totalPlayers - 3) / (25 - 3)) * 100}%, rgba(255,255,255,0.2) ${((totalPlayers - 3) / (25 - 3)) * 100}%, rgba(255,255,255,0.2) 100%)`
               }}
             />
             <div className="flex justify-between text-xs text-gray-300 mt-1">
               <span>3</span>
-              <span>15</span>
+              <span>25</span>
             </div>
           </div>
 

@@ -57,7 +57,7 @@ const SpeechOrderPhase: React.FC = () => {
 
         <div className="bg-white/20 rounded-xl p-4 backdrop-blur-sm mb-6">
           <h3 className="text-lg font-semibold mb-3 text-center">Ordre de parole :</h3>
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
             {orderedPlayers.map((playerName, index) => {
               return (
                 <div
