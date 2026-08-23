@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Le Suspect</title>
+    <script>
+      // Redirection vers index.html pour le routage SPA
+      var path = window.location.pathname;
+      if (path.endsWith('/')) {
+        path = path.slice(0, -1);
+      }
+      window.location.replace(path + '/index.html');
+    </script>
+  </head>
+  <body>
+    <p>Redirection en cours...</p>
+  </body>
+</html>
+
