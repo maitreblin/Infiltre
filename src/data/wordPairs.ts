@@ -284,39 +284,89 @@ export function encodeBase64Utf8(text: string): string {
 }
 
 /**
- * Décode et valide le payload généré par l'IA
+ * Parseur JSON tolérant aux légères erreurs de syntaxe des LLM
+ */
+function parseFlexibleJson(str: string): any {
+  try {
+    return JSON.parse(str);
+  } catch {
+    const fixed = str
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":');
+    return JSON.parse(fixed);
+  }
+}
+
+/**
+ * Décode et valide le payload généré par l'IA (compatible Base64 ou JSON direct)
  */
 export function decodeEncryptedPack(rawInput: string): { theme: string; pairs: WordPair[] } {
   let cleaned = rawInput.trim();
 
-  // Nettoyer les balises de bloc de code markdown si copiées
-  cleaned = cleaned.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').trim();
+  // Nettoyer les balises Markdown de code (```json, ```text, ```)
+  cleaned = cleaned
+    .replace(/^```[a-zA-Z]*\n?/gm, '')
+    .replace(/```$/gm, '')
+    .replace(/```/g, '')
+    .trim();
 
   // Extraire après CODE_INFILTRE: si présent
-  const prefixMatch = cleaned.match(/CODE_INFILTRE\s*:\s*([A-Za-z0-9+/=]+)/i);
-  let base64String = '';
+  const prefixMatch = cleaned.match(/CODE_INFILTRE\s*:\s*([\s\S]+)/i);
   if (prefixMatch && prefixMatch[1]) {
-    base64String = prefixMatch[1].trim();
-  } else {
-    // Ou extraire le plus long bloc base64 valide
-    const blockMatch = cleaned.match(/[A-Za-z0-9+/=]{16,}/);
-    if (blockMatch) {
-      base64String = blockMatch[0].trim();
-    } else {
-      base64String = cleaned;
+    cleaned = prefixMatch[1].trim();
+  }
+
+  let data: any = null;
+
+  // 1. Tenter d'abord si l'IA a fourni directement du JSON
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      const jsonCandidate = cleaned.slice(firstBrace, lastBrace + 1);
+      const parsed = parseFlexibleJson(jsonCandidate);
+      if (parsed && (Array.isArray(parsed.pairs) || Array.isArray(parsed))) {
+        data = parsed;
+      }
+    } catch {
+      // Pas du JSON direct valide, on passe au décodage Base64
     }
   }
 
-  const jsonStr = decodeBase64Utf8(base64String);
-  const data = JSON.parse(jsonStr);
-
-  if (!data || !Array.isArray(data.pairs) || data.pairs.length === 0) {
-    throw new Error('Format de données invalide : aucune paire de mots trouvée.');
+  // 2. Si pas trouvé, tenter le décodage Base64
+  if (!data) {
+    const b64Candidate = cleaned.replace(/[^A-Za-z0-9+/=]/g, '');
+    if (b64Candidate.length >= 8) {
+      try {
+        const decodedStr = decodeBase64Utf8(b64Candidate);
+        const fb = decodedStr.indexOf('{');
+        const lb = decodedStr.lastIndexOf('}');
+        if (fb !== -1 && lb !== -1 && lb > fb) {
+          data = parseFlexibleJson(decodedStr.slice(fb, lb + 1));
+        } else {
+          data = parseFlexibleJson(decodedStr);
+        }
+      } catch {
+        // Erreur Base64
+      }
+    }
   }
 
-  const themeName = data.theme && typeof data.theme === 'string' ? data.theme.trim() : 'Personnalisé';
+  if (!data) {
+    throw new Error('Impossible de lire les données. Vérifiez que le code fourni par l\'IA a bien été copié en entier.');
+  }
 
-  const validatedPairs: WordPair[] = data.pairs
+  const rawPairs = Array.isArray(data) ? data : data.pairs;
+  if (!Array.isArray(rawPairs) || rawPairs.length === 0) {
+    throw new Error('Aucune paire de mots trouvée dans les données.');
+  }
+
+  const themeName =
+    data.theme && typeof data.theme === 'string' ? data.theme.trim() : 'Personnalisé';
+
+  const validatedPairs: WordPair[] = rawPairs
     .filter((p: any) => p && typeof p.citoyen === 'string' && typeof p.undercover === 'string')
     .map((p: any) => ({
       citoyen: p.citoyen.trim(),
@@ -352,8 +402,8 @@ Règles de qualité pour les paires de mots :
 
 ⚠️ RÈGLE ANTI-SPOIL ABSOLUE :
 Pour ne pas gâcher la surprise au joueur qui va copier ta réponse, tu ne dois JAMAIS afficher les mots en clair dans ton message.
-Tu dois :
-1. Formater les données au format JSON :
+Instructions d'encodage :
+1. Formate les données en JSON :
 {
   "theme": "${chosenTheme}",
   "pairs": [
@@ -361,10 +411,10 @@ Tu dois :
     { "citoyen": "MotCitoyen2", "undercover": "MotUndercover2" }
   ]
 }
-2. Encoder TOUT ce JSON en Base64 (UTF-8).
-3. Placer le résultat STRICTEMENT dans un unique bloc de code Markdown (avec des triples backticks \`\`\`) pour que l'interface affiche le bouton de copie automatique (Copy code), sans aucun texte en dehors :
+2. Convertis TOUT ce JSON en Base64 (UTF-8).
+3. Affiche STRICTEMENT et UNIQUEMENT le bloc de code Markdown ci-dessous (pour activer le bouton de copie automatique), sans AUCUN autre texte ni avant ni après :
 
 \`\`\`text
-CODE_INFILTRE: [colle ici la chaîne Base64]
+CODE_INFILTRE: [la chaîne Base64 ici]
 \`\`\``;
 }
