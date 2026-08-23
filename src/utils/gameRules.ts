@@ -11,61 +11,63 @@ export interface RoleConstraints {
 }
 
 /**
+ * Calculate the total maximum allowed adversaries (Undercover + Mr. White)
+ * Règles Undercover:
+ * - Nombre PAIR (ex: 4, 6, 8): Civils >= Adversaires => Adversaires <= Total / 2
+ * - Nombre IMPAIR (ex: 3, 5, 7): Civils > Adversaires => Adversaires <= floor((Total - 1) / 2)
+ */
+export function calculateMaxTotalAdversaries(totalPlayers: number): number {
+  const isEven = totalPlayers % 2 === 0;
+  if (isEven) {
+    return Math.floor(totalPlayers / 2);
+  } else {
+    return Math.floor((totalPlayers - 1) / 2);
+  }
+}
+
+/**
  * Calculate the number of civilians based on game rules
- * IMPORTANT: totalPlayers is the REAL total. This function calculates how many Civils
- * there should be such that: totalPlayers = calculatedCivils + numUndercovers + numMrWhite
+ * IMPORTANT: totalPlayers = calculatedCivils + numUndercovers + numMrWhite
  */
 export function calculateCivils(
   totalPlayers: number,
   numUndercovers: number,
   numMrWhite: number
 ): number {
-  // Le nombre de Civils est toujours: Total - Adversaires
   return totalPlayers - numUndercovers - numMrWhite;
 }
 
 /**
  * Calculate maximum allowed undercovers
- * Règles:
- * - Nombre PAIR: Civils >= U + MW donc U + MW <= Civils donc U <= Total - MW
- * - Nombre IMPAIR: Civils > U + MW donc U + MW < Civils donc U + MW <= floor(Total/2)
+ * - Undercovers seuls doivent être strictement inférieurs aux Civils : U <= floor((Total - 1) / 2)
+ *   (Par exemple, pour 4 joueurs : max 1 Undercover ; 2 Undercovers pour 4 joueurs n'est pas autorisé)
+ * - Le total U + MW ne peut pas dépasser maxAdversaries
  */
 export function calculateMaxUndercovers(
   totalPlayers: number,
   numMrWhite: number
 ): number {
-  const isEven = totalPlayers % 2 === 0;
+  const maxAdversaries = calculateMaxTotalAdversaries(totalPlayers);
+  const maxUndercoversLimit = Math.floor((totalPlayers - 1) / 2);
 
-  if (isEven) {
-    // Pair: U + MW <= Total donc U <= Total - MW (en gardant au moins 1 Civil)
-    return Math.max(0, totalPlayers - numMrWhite - 1);
-  } else {
-    // Impair: U + MW < Civils donc U + MW <= floor(Total/2)
-    const maxAdversaries = Math.floor(totalPlayers / 2);
-    return Math.max(0, maxAdversaries - numMrWhite);
-  }
+  const availableSlots = maxAdversaries - numMrWhite;
+  return Math.max(0, Math.min(maxUndercoversLimit, availableSlots));
 }
 
 /**
  * Calculate maximum allowed Mr. White
- * Règles:
- * - Nombre PAIR: Civils >= U + MW donc MW <= Total - U
- * - Nombre IMPAIR: Civils > U + MW donc MW <= floor(Total/2) - U
+ * - Le total U + MW ne peut pas dépasser maxAdversaries
+ * - Dans les règles standard Undercover, Mr. White est limité (max 1 pour 3-6 joueurs, max 2 au-delà)
  */
 export function calculateMaxMrWhite(
   totalPlayers: number,
   numUndercovers: number
 ): number {
-  const isEven = totalPlayers % 2 === 0;
+  const maxAdversaries = calculateMaxTotalAdversaries(totalPlayers);
+  const maxMrWhiteLimit = Math.max(1, Math.floor(totalPlayers / 4));
 
-  if (isEven) {
-    // Pair: U + MW <= Total donc MW <= Total - U (en gardant au moins 1 Civil)
-    return Math.max(0, totalPlayers - numUndercovers - 1);
-  } else {
-    // Impair: U + MW < Civils donc U + MW <= floor(Total/2)
-    const maxAdversaries = Math.floor(totalPlayers / 2);
-    return Math.max(0, maxAdversaries - numUndercovers);
-  }
+  const availableSlots = maxAdversaries - numUndercovers;
+  return Math.max(0, Math.min(maxMrWhiteLimit, availableSlots));
 }
 
 /**
@@ -73,6 +75,7 @@ export function calculateMaxMrWhite(
  * Règles du jeu Undercover:
  * - Nombre PAIR de joueurs: Civils >= Undercover + Mr White (supérieur ou égal)
  * - Nombre IMPAIR de joueurs: Civils > Undercover + Mr White (strictement supérieur)
+ * - Undercovers seuls: max floor((totalPlayers - 1) / 2) (ex: max 1 à 4 joueurs)
  */
 export function validateConfiguration(
   totalPlayers: number,
@@ -91,6 +94,14 @@ export function validateConfiguration(
     };
   }
 
+  const maxUndercoversLimit = Math.floor((totalPlayers - 1) / 2);
+  if (numUndercovers > maxUndercoversLimit) {
+    return {
+      isValid: false,
+      errorMessage: `Pour ${totalPlayers} joueurs, le maximum d'Undercovers est de ${maxUndercoversLimit}.`,
+    };
+  }
+
   const isEven = totalPlayers % 2 === 0;
   const adversaries = numUndercovers + numMrWhite;
 
@@ -99,7 +110,7 @@ export function validateConfiguration(
     if (calculatedCivils < adversaries) {
       return {
         isValid: false,
-        errorMessage: `Nombre pair: Civils doit être ≥ Undercover + Mr White (${calculatedCivils} < ${adversaries})`,
+        errorMessage: `Nombre pair : Les Civils doivent être ≥ Adversaires (${calculatedCivils} < ${adversaries})`,
       };
     }
   } else {
@@ -107,7 +118,7 @@ export function validateConfiguration(
     if (calculatedCivils <= adversaries) {
       return {
         isValid: false,
-        errorMessage: `Nombre impair: Civils doit être > Undercover + Mr White (${calculatedCivils} ≤ ${adversaries})`,
+        errorMessage: `Nombre impair : Les Civils doivent être > Adversaires (${calculatedCivils} ≤ ${adversaries})`,
       };
     }
   }
