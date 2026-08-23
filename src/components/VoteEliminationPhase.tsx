@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { useToast } from '../context/ToastContext';
 
 const VoteEliminationPhase: React.FC = () => {
   const { gameState, eliminatePlayer, checkMrWhiteGuess } = useGame();
+  const { showToast } = useToast();
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
   const [eliminationResult, setEliminationResult] = useState<{
     eliminated: string;
@@ -14,7 +16,7 @@ const VoteEliminationPhase: React.FC = () => {
 
   const handleEliminate = () => {
     if (!selectedPlayer) {
-      alert('Veuillez sélectionner un joueur à éliminer.');
+      showToast('Veuillez sélectionner un joueur à éliminer.', 'warning');
       return;
     }
 
@@ -44,7 +46,7 @@ const VoteEliminationPhase: React.FC = () => {
 
   const handleMrWhiteGuessSubmit = () => {
     if (guessedWord.trim() === '') {
-      alert('Veuillez entrer un mot.');
+      showToast('Veuillez entrer un mot.', 'warning');
       return;
     }
 

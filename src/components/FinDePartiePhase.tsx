@@ -8,11 +8,12 @@ const FinDePartiePhase: React.FC = () => {
   const activePlayers = gameState.players.filter((p) => p.isActive);
   const hasUndercover = activePlayers.some((p) => p.role === 'Undercover');
   const hasMrWhite = activePlayers.some((p) => p.role === 'Mr. White');
-  
-  // Si on a des Undercover ou Mr. White actifs, ils gagnent ensemble
-  // Si un Mr. White a trouvé le mot avant d'être éliminé, la partie se termine directement en fin de partie
+
+  // Si Mr. White a gagné en devinant le mot, victoire pour Mr. White et Undercover
   let winnerMessage = '';
-  if (activePlayers.length === 1) {
+  if (gameState.mrWhiteWonByGuessing) {
+    winnerMessage = 'Mr. White a trouvé le mot ! Mr. White et Undercover gagnent !';
+  } else if (activePlayers.length === 1) {
     const winner = activePlayers[0];
     if (winner.role === 'Undercover') {
       winnerMessage = "L'Undercover gagne !";
@@ -52,7 +53,12 @@ const FinDePartiePhase: React.FC = () => {
                 }`}
               >
                 <p className="font-semibold">{player.name}</p>
-                <p className="text-sm text-gray-300">{player.role}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-300">{player.role}</p>
+                  {!player.isActive && (
+                    <span className="text-xs font-semibold text-red-400">Éliminé</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

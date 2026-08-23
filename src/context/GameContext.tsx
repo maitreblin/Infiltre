@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { GameState, GamePhase, Player, RoleType } from '../types/game';
 import { getRandomWordPair } from '../data/wordPairs';
+import { shuffle } from '../utils/shuffle';
 
 interface GameContextType {
   gameState: GameState;
@@ -26,51 +27,39 @@ const initialGameState: GameState = {
   indexJoueurActuel: 0,
   currentPlayerIndexForRole: 0,
   currentPlayerIndexForSpeech: 0,
+  mrWhiteWonByGuessing: false,
 };
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  // Fonction pour initialiser le jeu avec assignation aléatoire des rôles
-  const initializeGame = (totalPlayers: number, numUndercovers: number, numMrWhite: number) => {
-    // Sélectionner une paire de mots aléatoirement
-    const wordPair = getRandomWordPair();
-    
-    // Calculer le nombre de Civils
-    const numCivils = totalPlayers - numUndercovers - numMrWhite;
-    
-    // Générer les noms des joueurs
-    const playerNames = Array.from({ length: totalPlayers }, (_, i) => `Joueur ${i + 1}`);
-    
-    // Créer une copie de la liste des noms pour mélanger
-    const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);
-    
+  /**
+   * Helper function to create role assignments and players
+   */
+  const createPlayers = (
+    playerNames: string[],
+    numUndercovers: number,
+    numMrWhite: number,
+    wordPair: { citoyen: string; undercover: string }
+  ): Player[] => {
+    const numCivils = playerNames.length - numUndercovers - numMrWhite;
+
     // Créer la liste des rôles à assigner
-    const rolesToAssign: RoleType[] = [];
-    
-    // Ajouter Mr. White
-    for (let i = 0; i < numMrWhite; i++) {
-      rolesToAssign.push('Mr. White');
-    }
-    
-    // Ajouter les Undercovers
-    for (let i = 0; i < numUndercovers; i++) {
-      rolesToAssign.push('Undercover');
-    }
-    
-    // Ajouter les Citoyens
-    for (let i = 0; i < numCivils; i++) {
-      rolesToAssign.push('Citoyen');
-    }
-    
-    // Mélanger les rôles
-    const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
-    
-    // Assigner les rôles aux joueurs mélangés
-    const players: Player[] = shuffledNames.map((name, index) => {
+    const rolesToAssign: RoleType[] = [
+      ...Array(numMrWhite).fill('Mr. White'),
+      ...Array(numUndercovers).fill('Undercover'),
+      ...Array(numCivils).fill('Citoyen'),
+    ];
+
+    // Mélanger les noms et les rôles avec Fisher-Yates
+    const shuffledNames = shuffle(playerNames);
+    const shuffledRoles = shuffle(rolesToAssign);
+
+    // Assigner les rôles aux joueurs
+    return shuffledNames.map((name, index) => {
       const role = shuffledRoles[index];
       let secretWord: string | null = null;
-      
+
       if (role === 'Mr. White') {
         secretWord = null;
       } else if (role === 'Undercover') {
@@ -78,7 +67,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         secretWord = wordPair.citoyen;
       }
-      
+
       return {
         name,
         role,
@@ -86,6 +75,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isActive: true,
       };
     });
+  };
+
+  // Fonction pour initialiser le jeu avec assignation aléatoire des rôles
+  const initializeGame = (totalPlayers: number, numUndercovers: number, numMrWhite: number) => {
+    const wordPair = getRandomWordPair();
+    const playerNames = Array.from({ length: totalPlayers }, (_, i) => `Joueur ${i + 1}`);
+    const players = createPlayers(playerNames, numUndercovers, numMrWhite, wordPair);
 
     const newGameState: GameState = {
       players,
@@ -99,6 +95,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       indexJoueurActuel: 0,
       currentPlayerIndexForRole: 0,
       currentPlayerIndexForSpeech: 0,
+      mrWhiteWonByGuessing: false,
     };
 
     setGameState(newGameState);
@@ -110,51 +107,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Compter les rôles actuels
       const numMrWhite = prev.players.filter((p) => p.role === 'Mr. White').length;
       const numUndercovers = prev.players.filter((p) => p.role === 'Undercover').length;
-      const totalPlayers = prev.players.length;
-      
+
       // Sélectionner une nouvelle paire de mots aléatoirement
       const wordPair = getRandomWordPair();
-      
-      // Créer la liste des rôles à assigner (même distribution)
-      const rolesToAssign: RoleType[] = [];
-      for (let i = 0; i < numMrWhite; i++) {
-        rolesToAssign.push('Mr. White');
-      }
-      for (let i = 0; i < numUndercovers; i++) {
-        rolesToAssign.push('Undercover');
-      }
-      for (let i = 0; i < totalPlayers - numMrWhite - numUndercovers; i++) {
-        rolesToAssign.push('Citoyen');
-      }
-      
-      // Mélanger les rôles
-      const shuffledRoles = [...rolesToAssign].sort(() => Math.random() - 0.5);
-      
+
       // Garder les mêmes noms de joueurs mais réassigner les rôles
       const playerNames = prev.players.map((p) => p.name);
-      const shuffledNames = [...playerNames].sort(() => Math.random() - 0.5);
-      
-      // Assigner les nouveaux rôles et mots secrets
-      const players: Player[] = shuffledNames.map((name, index) => {
-        const role = shuffledRoles[index];
-        let secretWord: string | null = null;
-        
-        if (role === 'Mr. White') {
-          secretWord = null;
-        } else if (role === 'Undercover') {
-          secretWord = wordPair.undercover;
-        } else {
-          secretWord = wordPair.citoyen;
-        }
-        
-        return {
-          name,
-          role,
-          secretWord,
-          isActive: true,
-        };
-      });
-      
+      const players = createPlayers(playerNames, numUndercovers, numMrWhite, wordPair);
+
       return {
         ...prev,
         players,
@@ -168,6 +128,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         indexJoueurActuel: 0,
         currentPlayerIndexForRole: 0,
         currentPlayerIndexForSpeech: 0,
+        mrWhiteWonByGuessing: false,
       };
     });
   };
@@ -184,23 +145,27 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const checkMrWhiteGuess = (guessedWord: string, eliminatedPlayerName: string): boolean => {
     const normalizedGuess = guessedWord.trim().toLowerCase();
     const correctWord = gameState.secretWords.citoyen.toLowerCase();
-    
+
     if (normalizedGuess === correctWord) {
       // Mr. White a trouvé le mot ! Victoire pour Mr. White et Undercover
       setGameState((prev) => {
         const updatedPlayers = prev.players.map((p) =>
           p.name === eliminatedPlayerName ? { ...p, isActive: false } : p
         );
-        
+
+        const updatedActivePlayers = prev.activePlayers.filter((name) => name !== eliminatedPlayerName);
+
         return {
           ...prev,
           players: updatedPlayers,
+          activePlayers: updatedActivePlayers,
           currentPhase: 'FinDePartie',
+          mrWhiteWonByGuessing: true,
         };
       });
       return true;
     }
-    
+
     // Mauvaise réponse, élimination normale
     eliminatePlayer(eliminatedPlayerName);
     return false;

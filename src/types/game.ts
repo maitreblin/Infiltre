@@ -25,15 +25,18 @@ export interface GameState {
     citoyen: string;
     undercover: string;
   };
-  
+
   // Jeu en cours
   currentPhase: GamePhase;
   activePlayers: string[]; // Liste des noms des joueurs actifs
   tourActuel: number; // Numéro du tour actuel (1 à N)
   indexJoueurActuel: number; // Index dans activePlayers pour savoir qui parle/voit son rôle
-  
+
   // Configuration des tours
   currentPlayerIndexForRole: number; // Index pour la phase AffichageRole
   currentPlayerIndexForSpeech: number; // Index pour la phase TourDeParole
+
+  // Victoire spéciale
+  mrWhiteWonByGuessing: boolean; // Mr. White a gagné en devinant le mot
 }
 
