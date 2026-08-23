@@ -87,17 +87,61 @@ export const WORD_PAIRS = BASE_WORD_PAIRS;
 const STORAGE_KEY = 'infiltre_custom_word_packs';
 
 /**
- * Charge les packs personnalisés depuis le localStorage
+ * Charge les packs personnalisés depuis le localStorage et fusionne automatiquement les doublons de thèmes
  */
 export const getCustomPacks = (): CustomWordPack[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed;
+    if (!Array.isArray(parsed)) return [];
+
+    // Consolidation automatique des packs de même thème (insensible à la casse)
+    const mergedMap = new Map<string, CustomWordPack>();
+    for (const pack of parsed) {
+      if (!pack || !pack.theme || !Array.isArray(pack.pairs)) continue;
+      const key = pack.theme.trim().toLowerCase();
+      const existing = mergedMap.get(key);
+
+      if (existing) {
+        // Fusionner les paires sans doublons exacts
+        for (const p of pack.pairs) {
+          if (!p || !p.citoyen || !p.undercover) continue;
+          const isDuplicate = existing.pairs.some(
+            (ep) =>
+              ep.citoyen.trim().toLowerCase() === p.citoyen.trim().toLowerCase() &&
+              ep.undercover.trim().toLowerCase() === p.undercover.trim().toLowerCase()
+          );
+          if (!isDuplicate) {
+            existing.pairs.push({
+              citoyen: p.citoyen.trim(),
+              undercover: p.undercover.trim(),
+              theme: existing.theme,
+            });
+          }
+        }
+      } else {
+        mergedMap.set(key, {
+          id: pack.id || 'pack_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          theme: pack.theme.trim(),
+          pairs: pack.pairs
+            .filter((p: any) => p && p.citoyen && p.undercover)
+            .map((p: any) => ({
+              citoyen: p.citoyen.trim(),
+              undercover: p.undercover.trim(),
+              theme: pack.theme.trim(),
+            })),
+          createdAt: pack.createdAt || Date.now(),
+        });
+      }
     }
-    return [];
+
+    const consolidated = Array.from(mergedMap.values());
+    // Mettre à jour le localStorage si la consolidation a regroupé des packs
+    if (consolidated.length !== parsed.length) {
+      saveCustomPacks(consolidated);
+    }
+    return consolidated;
   } catch (err) {
     console.error('Erreur lecture custom packs localStorage:', err);
     return [];
@@ -116,19 +160,39 @@ export const saveCustomPacks = (packs: CustomWordPack[]): void => {
 };
 
 /**
- * Ajoute un pack personnalisé
+ * Ajoute un pack personnalisé (ou fusionne les mots si le thème existe déjà)
  */
 export const addCustomPack = (theme: string, pairs: WordPair[]): CustomWordPack => {
   const packs = getCustomPacks();
   const cleanTheme = theme.trim() || 'Personnalisé';
+  const existingPack = packs.find((p) => p.theme.toLowerCase() === cleanTheme.toLowerCase());
+
+  const formattedPairs = pairs.map((p) => ({
+    citoyen: p.citoyen.trim(),
+    undercover: p.undercover.trim(),
+    theme: cleanTheme,
+  }));
+
+  if (existingPack) {
+    // Fusionner les nouvelles paires en évitant les doublons exacts
+    for (const newPair of formattedPairs) {
+      const isDuplicate = existingPack.pairs.some(
+        (existing) =>
+          existing.citoyen.toLowerCase() === newPair.citoyen.toLowerCase() &&
+          existing.undercover.toLowerCase() === newPair.undercover.toLowerCase()
+      );
+      if (!isDuplicate) {
+        existingPack.pairs.push(newPair);
+      }
+    }
+    saveCustomPacks(packs);
+    return existingPack;
+  }
+
   const newPack: CustomWordPack = {
     id: 'pack_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     theme: cleanTheme,
-    pairs: pairs.map((p) => ({
-      citoyen: p.citoyen.trim(),
-      undercover: p.undercover.trim(),
-      theme: cleanTheme,
-    })),
+    pairs: formattedPairs,
     createdAt: Date.now(),
   };
 
@@ -162,7 +226,7 @@ export const deletePairFromPack = (packId: string, pairIndex: number): void => {
 };
 
 /**
- * Ajoute une paire manuelle à un thème
+ * Ajoute une paire manuelle à un thème (fusionne si le thème existe déjà)
  */
 export const addManualPair = (theme: string, citoyen: string, undercover: string): void => {
   const cleanTheme = theme.trim() || 'Personnalisé';
@@ -176,7 +240,14 @@ export const addManualPair = (theme: string, citoyen: string, undercover: string
   };
 
   if (existingPack) {
-    existingPack.pairs.push(newPair);
+    const isDuplicate = existingPack.pairs.some(
+      (existing) =>
+        existing.citoyen.toLowerCase() === newPair.citoyen.toLowerCase() &&
+        existing.undercover.toLowerCase() === newPair.undercover.toLowerCase()
+    );
+    if (!isDuplicate) {
+      existingPack.pairs.push(newPair);
+    }
   } else {
     packs.push({
       id: 'pack_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
