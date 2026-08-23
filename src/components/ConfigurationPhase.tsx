@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -7,13 +7,26 @@ import {
   calculateMaxMrWhite,
   validateConfiguration,
 } from '../utils/gameRules';
+import { getAllAvailableThemes } from '../data/wordPairs';
+import WordManagerSection from './WordManagerSection';
 
 const ConfigurationPhase: React.FC = () => {
-  const { initializeGame } = useGame();
+  const { gameState, initializeGame } = useGame();
   const { showToast } = useToast();
   const [totalPlayers, setTotalPlayers] = useState<number>(6);
   const [numUndercovers, setNumUndercovers] = useState<number>(2);
   const [numMrWhite, setNumMrWhite] = useState<number>(0);
+  const [selectedTheme, setSelectedTheme] = useState<string>(gameState.selectedTheme || 'ALL');
+  const [themesList, setThemesList] = useState(() => getAllAvailableThemes());
+
+  const refreshThemes = useCallback(() => {
+    const updated = getAllAvailableThemes();
+    setThemesList(updated);
+    // Vérifier si le thème sélectionné existe toujours
+    if (!updated.some((t) => t.id === selectedTheme)) {
+      setSelectedTheme('ALL');
+    }
+  }, [selectedTheme]);
 
   // Calcul automatique du nombre de Civils selon les règles
   const calculatedCivils = calculateCivils(totalPlayers, numUndercovers, numMrWhite);
@@ -46,7 +59,7 @@ const ConfigurationPhase: React.FC = () => {
         setNumUndercovers(Math.max(0, newMaxUndercovers));
       }
     }
-  }, [totalPlayers]); // Se déclenche uniquement quand totalPlayers change
+  }, [totalPlayers]);
 
   // Validation des règles
   const validation = validateConfiguration(
@@ -83,21 +96,44 @@ const ConfigurationPhase: React.FC = () => {
       return;
     }
 
-    // Le totalPlayers du slider est maintenant le vrai total
-    initializeGame(totalPlayers, numUndercovers, numMrWhite);
+    initializeGame(totalPlayers, numUndercovers, numMrWhite, selectedTheme);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-900 to-blue-900 text-white">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
-        <h1 className="text-3xl font-bold mb-6 text-center">Le Suspect</h1>
-        <h2 className="text-xl font-semibold mb-6 text-center">Configuration</h2>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 py-8 bg-gradient-to-br from-indigo-900 via-blue-900 to-purple-900 text-white">
+      {/* Carte Principale de Configuration */}
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/20">
+        <h1 className="text-3xl font-bold mb-2 text-center tracking-tight">Le Suspect</h1>
+        <h2 className="text-lg font-semibold mb-6 text-center text-indigo-200">Configuration de la partie</h2>
 
         <div className="space-y-6 mb-6">
+          {/* Sélecteur de Thème */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2 text-center">
+              Thème des mots secrets
+            </label>
+            <div className="relative">
+              <select
+                value={selectedTheme}
+                onChange={(e) => setSelectedTheme(e.target.value)}
+                className="w-full appearance-none bg-white/15 hover:bg-white/20 border border-white/30 text-white py-3 px-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm font-medium cursor-pointer transition-all pr-10"
+              >
+                {themesList.map((t) => (
+                  <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                    {t.name} ({t.count} paires)
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/70">
+                ▼
+              </div>
+            </div>
+          </div>
+
           {/* Slider pour le nombre total de joueurs */}
           <div>
             <label className="block text-lg font-medium mb-3 text-center">
-              Joueurs : <span className="text-2xl font-bold">{totalPlayers}</span>
+              Joueurs : <span className="text-2xl font-bold text-blue-300">{totalPlayers}</span>
             </label>
             <input
               type="range"
@@ -119,19 +155,19 @@ const ConfigurationPhase: React.FC = () => {
           {/* Affichage des rôles avec boutons +/- */}
           <div className="space-y-3">
             {/* Civils - lecture seule */}
-            <div className="flex items-center justify-between bg-blue-600/80 rounded-full px-6 py-4">
-              <span className="font-bold text-lg">Civils</span>
+            <div className="flex items-center justify-between bg-blue-600/80 rounded-2xl px-6 py-3.5 shadow-md">
+              <span className="font-bold text-base sm:text-lg">Civils</span>
               <span className="text-2xl font-bold">{calculatedCivils}</span>
             </div>
 
             {/* Undercover - avec boutons +/- */}
-            <div className="flex items-center justify-between bg-gray-800/80 rounded-full px-6 py-4">
-              <span className="font-bold text-lg">Undercover</span>
+            <div className="flex items-center justify-between bg-gray-800/80 rounded-2xl px-6 py-3.5 shadow-md">
+              <span className="font-bold text-base sm:text-lg">Undercover</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleUndercoversChange(-1)}
                   disabled={numUndercovers <= 0}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors font-bold text-xl"
+                  className="w-9 h-9 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition-all font-bold text-lg"
                 >
                   -
                 </button>
@@ -139,7 +175,7 @@ const ConfigurationPhase: React.FC = () => {
                 <button
                   onClick={() => handleUndercoversChange(1)}
                   disabled={numUndercovers >= calculateMaxUndercovers(totalPlayers, numMrWhite)}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors font-bold text-xl"
+                  className="w-9 h-9 flex items-center justify-center bg-gray-700 hover:bg-gray-600 disabled:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition-all font-bold text-lg"
                 >
                   +
                 </button>
@@ -147,13 +183,13 @@ const ConfigurationPhase: React.FC = () => {
             </div>
 
             {/* Mr. White - avec boutons +/- */}
-            <div className="flex items-center justify-between bg-yellow-600/80 rounded-full px-6 py-4">
-              <span className="font-bold text-lg">Mr. White</span>
+            <div className="flex items-center justify-between bg-yellow-600/80 rounded-2xl px-6 py-3.5 shadow-md">
+              <span className="font-bold text-base sm:text-lg">Mr. White</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleMrWhiteChange(-1)}
                   disabled={numMrWhite <= 0}
-                  className="w-10 h-10 flex items-center justify-center bg-yellow-700 hover:bg-yellow-600 disabled:bg-yellow-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors font-bold text-xl"
+                  className="w-9 h-9 flex items-center justify-center bg-yellow-700 hover:bg-yellow-600 disabled:bg-yellow-900 disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition-all font-bold text-lg"
                 >
                   -
                 </button>
@@ -161,26 +197,27 @@ const ConfigurationPhase: React.FC = () => {
                 <button
                   onClick={() => handleMrWhiteChange(1)}
                   disabled={numMrWhite >= calculateMaxMrWhite(totalPlayers, numUndercovers)}
-                  className="w-10 h-10 flex items-center justify-center bg-yellow-700 hover:bg-yellow-600 disabled:bg-yellow-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-full transition-colors font-bold text-xl"
+                  className="w-9 h-9 flex items-center justify-center bg-yellow-700 hover:bg-yellow-600 disabled:bg-yellow-900 disabled:opacity-40 disabled:cursor-not-allowed rounded-full transition-all font-bold text-lg"
                 >
                   +
                 </button>
               </div>
             </div>
           </div>
-
         </div>
 
         <button
           onClick={handleStartGame}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-2xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg text-lg tracking-wide"
         >
           COMMENCER
         </button>
       </div>
+
+      {/* Section Dépliante pour ajouter/gérer les mots sous la carte principale */}
+      <WordManagerSection onPacksUpdated={refreshThemes} />
     </div>
   );
 };
 
 export default ConfigurationPhase;
-

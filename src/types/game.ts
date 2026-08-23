@@ -18,6 +18,19 @@ export type GamePhase =
   | 'VoteElimination'
   | 'FinDePartie';
 
+export interface WordPair {
+  citoyen: string;
+  undercover: string;
+  theme?: string;
+}
+
+export interface CustomWordPack {
+  id: string;
+  theme: string;
+  pairs: WordPair[];
+  createdAt: number;
+}
+
 export interface GameState {
   // Configuration
   players: Player[];
@@ -25,6 +38,7 @@ export interface GameState {
     citoyen: string;
     undercover: string;
   };
+  selectedTheme?: string;
 
   // Jeu en cours
   currentPhase: GamePhase;
@@ -39,4 +53,3 @@ export interface GameState {
   // Victoire spéciale
   mrWhiteWonByGuessing: boolean; // Mr. White a gagné en devinant le mot
 }
-

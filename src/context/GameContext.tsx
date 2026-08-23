@@ -6,7 +6,12 @@ import { shuffle } from '../utils/shuffle';
 interface GameContextType {
   gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  initializeGame: (totalPlayers: number, numUndercovers: number, numMrWhite: number) => void;
+  initializeGame: (
+    totalPlayers: number,
+    numUndercovers: number,
+    numMrWhite: number,
+    themeId?: string
+  ) => void;
   restartGame: () => void;
   moveToNextPhase: (phase: GamePhase) => void;
   eliminatePlayer: (playerName: string) => void;
@@ -21,6 +26,7 @@ const initialGameState: GameState = {
     citoyen: '',
     undercover: '',
   },
+  selectedTheme: 'ALL',
   currentPhase: 'Configuration',
   activePlayers: [],
   tourActuel: 1,
@@ -78,8 +84,13 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Fonction pour initialiser le jeu avec assignation aléatoire des rôles
-  const initializeGame = (totalPlayers: number, numUndercovers: number, numMrWhite: number) => {
-    const wordPair = getRandomWordPair();
+  const initializeGame = (
+    totalPlayers: number,
+    numUndercovers: number,
+    numMrWhite: number,
+    themeId: string = 'ALL'
+  ) => {
+    const wordPair = getRandomWordPair(themeId);
     const playerNames = Array.from({ length: totalPlayers }, (_, i) => `Joueur ${i + 1}`);
     const players = createPlayers(playerNames, numUndercovers, numMrWhite, wordPair);
 
@@ -89,6 +100,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         citoyen: wordPair.citoyen,
         undercover: wordPair.undercover,
       },
+      selectedTheme: themeId,
       currentPhase: 'AffichageRole',
       activePlayers: playerNames,
       tourActuel: 1,
@@ -104,12 +116,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Fonction pour recommencer une partie avec les mêmes joueurs
   const restartGame = () => {
     setGameState((prev) => {
-      // Compter les rôles actuels
+      const themeId = prev.selectedTheme || 'ALL';
       const numMrWhite = prev.players.filter((p) => p.role === 'Mr. White').length;
       const numUndercovers = prev.players.filter((p) => p.role === 'Undercover').length;
 
-      // Sélectionner une nouvelle paire de mots aléatoirement
-      const wordPair = getRandomWordPair();
+      // Sélectionner une nouvelle paire de mots selon le thème configuré
+      const wordPair = getRandomWordPair(themeId);
 
       // Garder les mêmes noms de joueurs mais réassigner les rôles
       const playerNames = prev.players.map((p) => p.name);
@@ -122,6 +134,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           citoyen: wordPair.citoyen,
           undercover: wordPair.undercover,
         },
+        selectedTheme: themeId,
         currentPhase: 'AffichageRole',
         activePlayers: playerNames,
         tourActuel: 1,
@@ -184,7 +197,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       let nextPhase: GamePhase = prev.currentPhase;
       if (updatedActivePlayers.length > 2) {
         nextPhase = 'TourDeParole';
-        // Réinitialiser l'index pour le tour de parole
         return {
           ...prev,
           players: updatedPlayers,
@@ -229,4 +241,3 @@ export const useGame = () => {
   }
   return context;
 };
-
