@@ -209,7 +209,6 @@ export const getAllAvailableThemes = (): { id: string; name: string; count: numb
     { id: 'BASE', name: '📦 Mots de base', count: BASE_WORD_PAIRS.length },
   ];
 
-  // Regrouper par nom de thème personnalisé
   const themeMap = new Map<string, { id: string; name: string; count: number }>();
   for (const pack of customPacks) {
     const existing = themeMap.get(pack.theme);
@@ -245,12 +244,10 @@ export const getRandomWordPair = (themeId: string = 'ALL'): WordPair => {
     for (const p of matchingPacks) {
       pool.push(...p.pairs);
     }
-    // Si pour une raison quelconque le pool est vide, fallback sur base
     if (pool.length === 0) {
       pool = [...BASE_WORD_PAIRS];
     }
   } else {
-    // 'ALL' -> Tous les mots de base + tous les mots personnalisés
     pool = [...BASE_WORD_PAIRS];
     for (const p of customPacks) {
       pool.push(...p.pairs);
@@ -290,17 +287,23 @@ export function encodeBase64Utf8(text: string): string {
  * Décode et valide le payload généré par l'IA
  */
 export function decodeEncryptedPack(rawInput: string): { theme: string; pairs: WordPair[] } {
-  let base64String = rawInput.trim();
+  let cleaned = rawInput.trim();
+
+  // Nettoyer les balises de bloc de code markdown si copiées
+  cleaned = cleaned.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').trim();
 
   // Extraire après CODE_INFILTRE: si présent
-  const prefixMatch = base64String.match(/CODE_INFILTRE\s*:\s*([A-Za-z0-9+/=]+)/i);
+  const prefixMatch = cleaned.match(/CODE_INFILTRE\s*:\s*([A-Za-z0-9+/=]+)/i);
+  let base64String = '';
   if (prefixMatch && prefixMatch[1]) {
     base64String = prefixMatch[1].trim();
   } else {
     // Ou extraire le plus long bloc base64 valide
-    const blockMatch = base64String.match(/[A-Za-z0-9+/=]{16,}/);
+    const blockMatch = cleaned.match(/[A-Za-z0-9+/=]{16,}/);
     if (blockMatch) {
       base64String = blockMatch[0].trim();
+    } else {
+      base64String = cleaned;
     }
   }
 
@@ -359,7 +362,9 @@ Tu dois :
   ]
 }
 2. Encoder TOUT ce JSON en Base64 (UTF-8).
-3. Répondre STRICTEMENT et UNIQUEMENT avec le code généré sous cette forme, sans aucune formule de politesse ni texte avant/après :
+3. Placer le résultat STRICTEMENT dans un unique bloc de code Markdown (avec des triples backticks \`\`\`) pour que l'interface affiche le bouton de copie automatique (Copy code), sans aucun texte en dehors :
 
-CODE_INFILTRE: [colle ici la chaîne Base64]`;
+\`\`\`text
+CODE_INFILTRE: [colle ici la chaîne Base64]
+\`\`\``;
 }
