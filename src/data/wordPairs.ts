@@ -284,18 +284,41 @@ export function encodeBase64Utf8(text: string): string {
 }
 
 /**
- * Parseur JSON tolérant aux légères erreurs de syntaxe des LLM
+ * Parseur JSON ultra-tolérant aux erreurs de syntaxe et caractères de contrôle des LLM
  */
 function parseFlexibleJson(str: string): any {
+  // 1. Nettoyer les caractères de contrôle invisibles / corrompus (ex: \x08 backspace de Gemini)
+  let sanitized = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200D\uFEFF]/g, '');
+
   try {
-    return JSON.parse(str);
+    return JSON.parse(sanitized);
   } catch {
-    const fixed = str
+    // 2. Nettoyer guillemets typographiques
+    sanitized = sanitized
       .replace(/[\u201C\u201D]/g, '"')
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/,\s*([}\]])/g, '$1')
-      .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":');
-    return JSON.parse(fixed);
+      .replace(/[\u2018\u2019]/g, "'");
+
+    // 3. Réparer les valeurs avec guillemet fermant mais sans guillemet ouvrant : "key": Percule Poirot"
+    sanitized = sanitized.replace(/(:\s*)([^"'{}\[\],\s][^"{}\[\],]*)"/g, (_match, prefix, val) => {
+      return prefix + '"' + val.trim() + '"';
+    });
+
+    // 4. Réparer les valeurs sans guillemets : "key": Percule Poirot,
+    sanitized = sanitized.replace(/(:\s*)([a-zA-ZÀ-ÿ0-9\s'-]+?)([,}])/g, (match, prefix, val, ending) => {
+      const trimmed = val.trim();
+      if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null' || !isNaN(Number(trimmed)) || trimmed.startsWith('"')) {
+        return match;
+      }
+      return prefix + '"' + trimmed + '"' + ending;
+    });
+
+    // 5. Normaliser les clés sans guillemets doubles
+    sanitized = sanitized.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":');
+
+    // 6. Supprimer les virgules orphelines
+    sanitized = sanitized.replace(/,\s*([}\]])/g, '$1');
+
+    return JSON.parse(sanitized);
   }
 }
 
