@@ -176,9 +176,9 @@ const VoteEliminationPhase: React.FC = () => {
             <button
               key={playerName}
               onClick={() => setSelectedPlayer(playerName)}
-              className={`w-full px-4 py-3 rounded-xl transition-all ${
+              className={`w-full px-4 py-3 rounded-xl transition-all font-semibold ${
                 selectedPlayer === playerName
-                  ? 'bg-red-600 ring-4 ring-red-400'
+                  ? 'bg-red-600 shadow-md'
                   : 'bg-white/20 hover:bg-white/30'
               }`}
             >
